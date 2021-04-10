@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.0-beta.1/redux.min.js"></script>
+    </head>
+
+    <body>
+        <div id="subject"></div>
+        <div id="toc"></div>
+        <div id="control"></div>
+        <div id="content"></div>   
+
+        <script>
+
+function subject(){
+    document.querySelector('#subject').innerHTML = `
+    <header>
+        <h1>WEB</h1>
+        Hello, WEB!
+    </header>
+    `
+}
+function TOC(){
+    var state = store.getState();
+    var liTags = '';
+    var i = 0;
+    while(i < state.contents.length) {
+        liTags += `
+            <li>
+                <a 
+                onclick="
+                    event.preventDefault(); //unless it goes to another page
+                    var action = {type:'SELECT', id:${state.contents[i].id}};
+                    store.dispatch(action);
+                " href="${state.contents[i].id}">
+                    ${state.contents[i].title}
+                </a>
+            </li>
+        `;
+        i += 1;
+    }
+    document.querySelector('#toc').innerHTML = `
+    <nav>
+        <ol>${liTags}</ol>
+    </nav>
+    `;
+}
+function control(){
+    document.querySelector('#control').innerHTML = `
+    <ul>
+        <li><a onclick="
+            event.preventDefault();
+            store.dispatch({
+                type:'CREATE_PAGE'
+            });
+        " href="/create">create</a></li>
+        <li><input onclick="
+              store.dispatch({
+                  type:'DELETE'
+              });
+        " type="button" value="delete"></li>
+    </ul>
+    `;
+}
+function article(){
+    var state = store.getState();
+    if (state.mode === 'create') {
+        document.querySelector('#content').innerHTML = `
+        <article>
+            <form onsubmit="
+                event.preventDefault();
+                var _title = this.title.value;
+                var _desc = this.desc.value;
+                store.dispatch({
+                    type:'CREATE',
+                    title:_title,
+                    desc:_desc
+                });
+            ">
+                <p>
+                    <input type="text" name="title"
+                    placeholder="title">
+                </p>
+                <p>
+                    <textarea name="desc"
+                    placeholder="description"></textarea>
+                </p>
+                <p>
+                    <input type="submit">
+                </p>
+            </form>
+        </article>
+        `
+    } else if (state.mode === 'read') {
+        var i = 0;
+        var aTitle, aDesc;
+        while(i < state.contents.length) {
+            if (state.contents[i].id === state.selected_id) {
+                aTitle = state.contents[i].title;
+                aDesc = state.contents[i].desc;
+            }
+            i += 1;
+        }
+
+        document.querySelector('#content').innerHTML = `
+        <article>
+            <h2>${aTitle}</h2>
+            ${aDesc}
+        </article>
+        `
+    } else if (state.mode === 'welcome') {
+        document.querySelector('#content').innerHTML = `
+        <article>
+            <h2>Welcome</h2>
+            Hello Redux!
+        </article>
+        `
+    }
+}
+
+// dispatcher에 들어오는 action 값과 store에 있는 기존의 state 값을 보고 newState를 리턴
+// return 값이 new state 값 
+// return 값을 설정할때 immutability 고려 필요 (undo, redo 사용시 필요)
+function reducer(state, action) {
+    // reducer는 최초 한번은 무조건 실행... 초기 세팅용
+    if (state === undefined) {
+        return {
+            max_id:2,
+            mode:'welcome', // 'welcome','create','read'
+            selected_id:2,
+            contents:[
+                {id:1,title:'HTML',desc:'HTML is ...'},
+                {id:2,title:'CSS',desc:'CSS is ...'}
+            ]
+        };
+    }
+
+    var newState;
+    if (action.type === 'SELECT') {
+        newState = Object.assign({}, state, {
+            mode:'read',
+            selected_id:action.id
+        });
+    }
+    else if (action.type === 'CREATE_PAGE') {
+        newState = Object.assign({}, state, {
+            mode:'create'
+        });
+    }
+    else if (action.type === 'CREATE') {
+        var newMaxId = state.max_id + 1;
+        var newContents = state.contents.concat({
+            id:newMaxId,
+            title:action.title,
+            desc:action.desc
+        });
+        newState = Object.assign({}, state, {
+            max_id:newMaxId,
+            mode:'read',
+            selected_id:newMaxId,
+            contents:newContents
+        });
+    }
+    else if (action.type === 'DELETE') {
+        var newMaxId = state.max_id - 1;
+        var newContents = [];
+        var i = 0;
+        while (i < state.contents.length) {
+            if (state.contents[i].id !== state.selected_id) {
+                newContents.push(state.contents[i]);
+            }
+            i += 1;
+        }
+        newState = Object.assign({}, state, {
+            max_id:newMaxId,
+            mode:'welcome',
+            contents:newContents
+        })
+        console.log(newContents);
+    } 
+    console.log(action.type, action, state, newState);
+    return newState;
+}
+// store 생성 및 reducer 적용
+// dev 툴을 적용해서 state 변경을 타임라인으로 볼수있게 세팅
+// 꼭 server에 구동했을때 dev 툴 사용 가능
+// https://github.com/zalmoxisus/redux-devtools-extension#usage
+const store = Redux.createStore(
+    reducer,
+    window.__REDUX_DEVTOOLS_EXTENSION__ &&
+    window.__REDUX_DEVTOOLS_EXTENSION__()
+);
+// state 값에 변경됬을때 호출될 render 설정
+store.subscribe(TOC);
+store.subscribe(article);
+
+subject();
+TOC();
+control();
+article();
+
+        </script>
+    </body>
+</html>
