@@ -35,7 +35,14 @@
                 return newState;
             }
             // state 생성 및 reducer 적용
-            var store = Redux.createStore(reducer);
+            // dev 툴을 적용해서 state 변경을 타임라인으로 볼수있게 세팅
+            // 꼭 server에 구동했을때 dev 툴 사용 가능
+            // https://github.com/zalmoxisus/redux-devtools-extension#usage
+            const store = Redux.createStore(
+                reducer,
+                window.__REDUX_DEVTOOLS_EXTENSION__ &&
+                window.__REDUX_DEVTOOLS_EXTENSION__()
+            );
 
             function red() {
                 var state = store.getState();
